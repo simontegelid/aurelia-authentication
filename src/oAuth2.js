@@ -67,7 +67,7 @@ export class OAuth2 {
     const popup     = this.popup.open(url, provider.name, provider.popupOptions);
     const openPopup = (this.config.platform === 'mobile')
                     ? popup.eventListener(provider.redirectUri)
-                    : popup.pollPopup();
+                    : popup.pollPopup(provider.redirectUri);
 
     return openPopup
       .then(oauthData => {
@@ -160,7 +160,7 @@ export class OAuth2 {
     const popup     = this.popup.open(url, provider.name, provider.popupOptions);
     const openPopup = (this.config.platform === 'mobile')
                     ? popup.eventListener(provider.postLogoutRedirectUri)
-                    : popup.pollPopup();
+                    : popup.pollPopup(provider.postLogoutRedirectUri);
 
     return openPopup;
   }

@@ -101,7 +101,7 @@ define(['exports', 'extend', 'jwt-decode', 'aurelia-pal', 'aurelia-path', 'aurel
 
       return new Promise(function (resolve, reject) {
         _this.popupWindow.addEventListener('loadstart', function (event) {
-          if (event.url.indexOf(redirectUri) !== 0) {
+          if (!uriEqual(event.url, redirectUri)) {
             return;
           }
 
@@ -132,7 +132,7 @@ define(['exports', 'extend', 'jwt-decode', 'aurelia-pal', 'aurelia-path', 'aurel
       });
     };
 
-    Popup.prototype.pollPopup = function pollPopup() {
+    Popup.prototype.pollPopup = function pollPopup(redirectUri) {
       var _this2 = this;
 
       return new Promise(function (resolve, reject) {
@@ -140,7 +140,10 @@ define(['exports', 'extend', 'jwt-decode', 'aurelia-pal', 'aurelia-path', 'aurel
           var errorData = void 0;
 
           try {
-            if (_this2.popupWindow.location.host === _aureliaPal.PLATFORM.global.document.location.host && (_this2.popupWindow.location.search || _this2.popupWindow.location.hash)) {
+            var popupWinLoc = _this2.popupWindow.location;
+            var popupWinUri = popupWinLoc.origin + popupWinLoc.pathname;
+
+            if (uriEqual(popupWinUri, redirectUri)) {
               var qs = parseUrl(_this2.popupWindow.location);
 
               if (qs.error) {
@@ -200,6 +203,17 @@ define(['exports', 'extend', 'jwt-decode', 'aurelia-pal', 'aurelia-path', 'aurel
     var hash = url.hash.charAt(0) === '#' ? url.hash.substr(1) : url.hash;
 
     return (0, _extend2.default)(true, {}, (0, _aureliaPath.parseQueryString)(url.search), (0, _aureliaPath.parseQueryString)(hash));
+  };
+
+  var uriEqual = function uriEqual(uri1, uri2) {
+    if (uri1.endsWith('/')) {
+      uri1 = uri1.slice(0, -1);
+    }
+    if (uri2.endsWith('/')) {
+      uri2 = uri2.slice(0, -1);
+    }
+
+    return uri1 === uri2;
   };
 
   var logger = exports.logger = (0, _aureliaLogging.getLogger)('aurelia-authentication');
@@ -682,7 +696,7 @@ define(['exports', 'extend', 'jwt-decode', 'aurelia-pal', 'aurelia-path', 'aurel
           _this4.popup.popupWindow.location = url;
         }
 
-        var popupListener = _this4.config.platform === 'mobile' ? _this4.popup.eventListener(provider.redirectUri) : _this4.popup.pollPopup();
+        var popupListener = _this4.config.platform === 'mobile' ? _this4.popup.eventListener(provider.redirectUri) : _this4.popup.pollPopup(provider.redirectUri);
 
         return popupListener.then(function (result) {
           return _this4.exchangeForToken(result, userData, provider);
@@ -738,7 +752,7 @@ define(['exports', 'extend', 'jwt-decode', 'aurelia-pal', 'aurelia-path', 'aurel
 
       var url = provider.authorizationEndpoint + '?' + (0, _aureliaPath.buildQueryString)(this.buildQuery(provider));
       var popup = this.popup.open(url, provider.name, provider.popupOptions);
-      var openPopup = this.config.platform === 'mobile' ? popup.eventListener(provider.redirectUri) : popup.pollPopup();
+      var openPopup = this.config.platform === 'mobile' ? popup.eventListener(provider.redirectUri) : popup.pollPopup(provider.redirectUri);
 
       return openPopup.then(function (oauthData) {
         if (provider.responseType === 'token' || provider.responseType === 'id_token token' || provider.responseType === 'token id_token') {
@@ -798,7 +812,7 @@ define(['exports', 'extend', 'jwt-decode', 'aurelia-pal', 'aurelia-path', 'aurel
       var provider = (0, _extend2.default)(true, {}, this.defaults, options);
       var url = provider.logoutEndpoint + '?' + (0, _aureliaPath.buildQueryString)(this.buildLogoutQuery(provider));
       var popup = this.popup.open(url, provider.name, provider.popupOptions);
-      var openPopup = this.config.platform === 'mobile' ? popup.eventListener(provider.postLogoutRedirectUri) : popup.pollPopup();
+      var openPopup = this.config.platform === 'mobile' ? popup.eventListener(provider.postLogoutRedirectUri) : popup.pollPopup(provider.postLogoutRedirectUri);
 
       return openPopup;
     };

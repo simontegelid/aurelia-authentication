@@ -69,7 +69,7 @@ export let Popup = class Popup {
   eventListener(redirectUri) {
     return new Promise((resolve, reject) => {
       this.popupWindow.addEventListener('loadstart', event => {
-        if (event.url.indexOf(redirectUri) !== 0) {
+        if (!uriEqual(event.url, redirectUri)) {
           return;
         }
 
@@ -100,13 +100,16 @@ export let Popup = class Popup {
     });
   }
 
-  pollPopup() {
+  pollPopup(redirectUri) {
     return new Promise((resolve, reject) => {
       this.polling = PLATFORM.global.setInterval(() => {
         let errorData;
 
         try {
-          if (this.popupWindow.location.host === PLATFORM.global.document.location.host && (this.popupWindow.location.search || this.popupWindow.location.hash)) {
+          let popupWinLoc = this.popupWindow.location;
+          let popupWinUri = popupWinLoc.origin + popupWinLoc.pathname;
+
+          if (uriEqual(popupWinUri, redirectUri)) {
             const qs = parseUrl(this.popupWindow.location);
 
             if (qs.error) {
@@ -138,6 +141,7 @@ export let Popup = class Popup {
       }, 35);
     });
   }
+
 };
 
 const buildPopupWindowOptions = options => {
@@ -162,6 +166,17 @@ const parseUrl = url => {
   let hash = url.hash.charAt(0) === '#' ? url.hash.substr(1) : url.hash;
 
   return extend(true, {}, parseQueryString(url.search), parseQueryString(hash));
+};
+
+const uriEqual = (uri1, uri2) => {
+  if (uri1.endsWith('/')) {
+    uri1 = uri1.slice(0, -1);
+  }
+  if (uri2.endsWith('/')) {
+    uri2 = uri2.slice(0, -1);
+  }
+
+  return uri1 === uri2;
 };
 
 export const logger = getLogger('aurelia-authentication');
@@ -616,7 +631,7 @@ export let OAuth1 = (_dec3 = inject(Storage, Popup, BaseConfig), _dec3(_class4 =
         this.popup.popupWindow.location = url;
       }
 
-      const popupListener = this.config.platform === 'mobile' ? this.popup.eventListener(provider.redirectUri) : this.popup.pollPopup();
+      const popupListener = this.config.platform === 'mobile' ? this.popup.eventListener(provider.redirectUri) : this.popup.pollPopup(provider.redirectUri);
 
       return popupListener.then(result => this.exchangeForToken(result, userData, provider));
     });
@@ -665,7 +680,7 @@ export let OAuth2 = (_dec4 = inject(Storage, Popup, BaseConfig), _dec4(_class5 =
 
     const url = provider.authorizationEndpoint + '?' + buildQueryString(this.buildQuery(provider));
     const popup = this.popup.open(url, provider.name, provider.popupOptions);
-    const openPopup = this.config.platform === 'mobile' ? popup.eventListener(provider.redirectUri) : popup.pollPopup();
+    const openPopup = this.config.platform === 'mobile' ? popup.eventListener(provider.redirectUri) : popup.pollPopup(provider.redirectUri);
 
     return openPopup.then(oauthData => {
       if (provider.responseType === 'token' || provider.responseType === 'id_token token' || provider.responseType === 'token id_token') {
@@ -723,7 +738,7 @@ export let OAuth2 = (_dec4 = inject(Storage, Popup, BaseConfig), _dec4(_class5 =
     const provider = extend(true, {}, this.defaults, options);
     const url = provider.logoutEndpoint + '?' + buildQueryString(this.buildLogoutQuery(provider));
     const popup = this.popup.open(url, provider.name, provider.popupOptions);
-    const openPopup = this.config.platform === 'mobile' ? popup.eventListener(provider.postLogoutRedirectUri) : popup.pollPopup();
+    const openPopup = this.config.platform === 'mobile' ? popup.eventListener(provider.postLogoutRedirectUri) : popup.pollPopup(provider.postLogoutRedirectUri);
 
     return openPopup;
   }

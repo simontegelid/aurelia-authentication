@@ -3,7 +3,7 @@
 System.register(['extend', 'jwt-decode', 'aurelia-pal', 'aurelia-path', 'aurelia-logging', 'aurelia-dependency-injection', 'aurelia-metadata', 'aurelia-event-aggregator', 'aurelia-templating-resources', 'aurelia-api', 'aurelia-router', 'aurelia-fetch-client', './authFilterValueConverter', './authenticatedValueConverter', './authenticatedFilterValueConverter'], function (_export, _context) {
   "use strict";
 
-  var extend, jwtDecode, PLATFORM, DOM, parseQueryString, join, buildQueryString, getLogger, inject, Container, deprecated, EventAggregator, BindingSignaler, Rest, Config, Redirect, HttpClient, AuthFilterValueConverter, AuthenticatedValueConverter, AuthenticatedFilterValueConverter, _dec, _class2, _dec2, _class3, _dec3, _class4, _dec4, _class5, _dec5, _dec6, _dec7, _dec8, _dec9, _dec10, _dec11, _class6, _desc, _value, _class7, _dec12, _dec13, _class8, _desc2, _value2, _class9, _dec14, _class11, _dec15, _class12, _dec16, _class13, _typeof, _createClass, Popup, buildPopupWindowOptions, parseUrl, logger, BaseConfig, Storage, AuthLock, OAuth1, OAuth2, Authentication, AuthService, AuthenticateStep, AuthorizeStep, FetchConfig;
+  var extend, jwtDecode, PLATFORM, DOM, parseQueryString, join, buildQueryString, getLogger, inject, Container, deprecated, EventAggregator, BindingSignaler, Rest, Config, Redirect, HttpClient, AuthFilterValueConverter, AuthenticatedValueConverter, AuthenticatedFilterValueConverter, _dec, _class2, _dec2, _class3, _dec3, _class4, _dec4, _class5, _dec5, _dec6, _dec7, _dec8, _dec9, _dec10, _dec11, _class6, _desc, _value, _class7, _dec12, _dec13, _class8, _desc2, _value2, _class9, _dec14, _class11, _dec15, _class12, _dec16, _class13, _typeof, _createClass, Popup, buildPopupWindowOptions, parseUrl, uriEqual, logger, BaseConfig, Storage, AuthLock, OAuth1, OAuth2, Authentication, AuthService, AuthenticateStep, AuthorizeStep, FetchConfig;
 
   function _applyDecoratedDescriptor(target, property, decorators, descriptor, context) {
     var desc = {};
@@ -210,7 +210,7 @@ System.register(['extend', 'jwt-decode', 'aurelia-pal', 'aurelia-path', 'aurelia
 
           return new Promise(function (resolve, reject) {
             _this.popupWindow.addEventListener('loadstart', function (event) {
-              if (event.url.indexOf(redirectUri) !== 0) {
+              if (!uriEqual(event.url, redirectUri)) {
                 return;
               }
 
@@ -241,7 +241,7 @@ System.register(['extend', 'jwt-decode', 'aurelia-pal', 'aurelia-path', 'aurelia
           });
         };
 
-        Popup.prototype.pollPopup = function pollPopup() {
+        Popup.prototype.pollPopup = function pollPopup(redirectUri) {
           var _this2 = this;
 
           return new Promise(function (resolve, reject) {
@@ -249,7 +249,10 @@ System.register(['extend', 'jwt-decode', 'aurelia-pal', 'aurelia-path', 'aurelia
               var errorData = void 0;
 
               try {
-                if (_this2.popupWindow.location.host === PLATFORM.global.document.location.host && (_this2.popupWindow.location.search || _this2.popupWindow.location.hash)) {
+                var popupWinLoc = _this2.popupWindow.location;
+                var popupWinUri = popupWinLoc.origin + popupWinLoc.pathname;
+
+                if (uriEqual(popupWinUri, redirectUri)) {
                   var qs = parseUrl(_this2.popupWindow.location);
 
                   if (qs.error) {
@@ -311,6 +314,17 @@ System.register(['extend', 'jwt-decode', 'aurelia-pal', 'aurelia-path', 'aurelia
         var hash = url.hash.charAt(0) === '#' ? url.hash.substr(1) : url.hash;
 
         return extend(true, {}, parseQueryString(url.search), parseQueryString(hash));
+      };
+
+      uriEqual = function uriEqual(uri1, uri2) {
+        if (uri1.endsWith('/')) {
+          uri1 = uri1.slice(0, -1);
+        }
+        if (uri2.endsWith('/')) {
+          uri2 = uri2.slice(0, -1);
+        }
+
+        return uri1 === uri2;
       };
 
       _export('logger', logger = getLogger('aurelia-authentication'));
@@ -797,7 +811,7 @@ System.register(['extend', 'jwt-decode', 'aurelia-pal', 'aurelia-path', 'aurelia
               _this4.popup.popupWindow.location = url;
             }
 
-            var popupListener = _this4.config.platform === 'mobile' ? _this4.popup.eventListener(provider.redirectUri) : _this4.popup.pollPopup();
+            var popupListener = _this4.config.platform === 'mobile' ? _this4.popup.eventListener(provider.redirectUri) : _this4.popup.pollPopup(provider.redirectUri);
 
             return popupListener.then(function (result) {
               return _this4.exchangeForToken(result, userData, provider);
@@ -856,7 +870,7 @@ System.register(['extend', 'jwt-decode', 'aurelia-pal', 'aurelia-path', 'aurelia
 
           var url = provider.authorizationEndpoint + '?' + buildQueryString(this.buildQuery(provider));
           var popup = this.popup.open(url, provider.name, provider.popupOptions);
-          var openPopup = this.config.platform === 'mobile' ? popup.eventListener(provider.redirectUri) : popup.pollPopup();
+          var openPopup = this.config.platform === 'mobile' ? popup.eventListener(provider.redirectUri) : popup.pollPopup(provider.redirectUri);
 
           return openPopup.then(function (oauthData) {
             if (provider.responseType === 'token' || provider.responseType === 'id_token token' || provider.responseType === 'token id_token') {
@@ -916,7 +930,7 @@ System.register(['extend', 'jwt-decode', 'aurelia-pal', 'aurelia-path', 'aurelia
           var provider = extend(true, {}, this.defaults, options);
           var url = provider.logoutEndpoint + '?' + buildQueryString(this.buildLogoutQuery(provider));
           var popup = this.popup.open(url, provider.name, provider.popupOptions);
-          var openPopup = this.config.platform === 'mobile' ? popup.eventListener(provider.postLogoutRedirectUri) : popup.pollPopup();
+          var openPopup = this.config.platform === 'mobile' ? popup.eventListener(provider.postLogoutRedirectUri) : popup.pollPopup(provider.postLogoutRedirectUri);
 
           return openPopup;
         };

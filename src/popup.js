@@ -25,7 +25,7 @@ export class Popup {
   eventListener(redirectUri: string): Promise<any> {
     return new Promise((resolve, reject) => {
       this.popupWindow.addEventListener('loadstart', event => {
-        if (event.url.indexOf(redirectUri) !== 0) {
+        if (!uriEqual(event.url, redirectUri)) {
           return;
         }
 
@@ -56,14 +56,16 @@ export class Popup {
     });
   }
 
-  pollPopup(): Promise<any> {
+  pollPopup(redirectUri: string): Promise<any> {
     return new Promise((resolve, reject) => {
       this.polling = PLATFORM.global.setInterval(() => {
         let errorData;
 
         try {
-          if (this.popupWindow.location.host ===  PLATFORM.global.document.location.host
-            && (this.popupWindow.location.search || this.popupWindow.location.hash)) {
+          let popupWinLoc = this.popupWindow.location;
+          let popupWinUri = popupWinLoc.origin + popupWinLoc.pathname;
+
+          if (uriEqual(popupWinUri, redirectUri)) {
             const qs = parseUrl(this.popupWindow.location);
 
             if (qs.error) {
@@ -95,6 +97,7 @@ export class Popup {
       }, 35);
     });
   }
+
 }
 
 const buildPopupWindowOptions = (options: {}): string => {
@@ -120,3 +123,14 @@ const parseUrl = (url: string): {} => {
 
   return extend(true, {}, parseQueryString(url.search), parseQueryString(hash));
 };
+
+const uriEqual = (uri1: string, uri2: string): Boolean => {
+  if (uri1.endsWith('/')) {
+    uri1 = uri1.slice(0, -1);
+  }
+  if (uri2.endsWith('/')) {
+    uri2 = uri2.slice(0, -1);
+  }
+
+  return uri1 === uri2;
+}

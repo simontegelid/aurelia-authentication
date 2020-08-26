@@ -40,7 +40,7 @@ export class OAuth1 {
 
         const popupListener = this.config.platform === 'mobile'
                             ? this.popup.eventListener(provider.redirectUri)
-                            : this.popup.pollPopup();
+                            : this.popup.pollPopup(provider.redirectUri);
 
         return popupListener.then(result => this.exchangeForToken(result, userData, provider));
       });
