@@ -1,9 +1,9 @@
-import {inject} from 'aurelia-dependency-injection';
-import {buildQueryString} from 'aurelia-path';
+import { inject } from 'aurelia-dependency-injection';
+import { buildQueryString } from 'aurelia-path';
 import extend from 'extend';
-import {Storage} from './storage';
-import {Popup} from './popup';
-import {BaseConfig} from './baseConfig';
+import { Storage } from './storage';
+import { Popup } from './popup';
+import { BaseConfig } from './baseConfig';
 
 /**
  * OAuth2 service class
@@ -23,23 +23,23 @@ export class OAuth2 {
    * @memberOf OAuth2
    */
   constructor(storage: Storage, popup: Popup, config: BaseConfig) {
-    this.storage      = storage;
-    this.config       = config;
-    this.popup        = popup;
-    this.defaults     = {
-      url                  : null,
-      name                 : null,
-      state                : null,
-      scope                : null,
-      scopeDelimiter       : null,
-      redirectUri          : null,
-      popupOptions         : null,
+    this.storage = storage;
+    this.config = config;
+    this.popup = popup;
+    this.defaults = {
+      url: null,
+      name: null,
+      state: null,
+      scope: null,
+      scopeDelimiter: null,
+      redirectUri: null,
+      popupOptions: null,
       authorizationEndpoint: null,
-      responseParams       : null,
-      requiredUrlParams    : null,
-      optionalUrlParams    : null,
-      defaultUrlParams     : ['response_type', 'client_id', 'redirect_uri'],
-      responseType         : 'code'
+      responseParams: null,
+      requiredUrlParams: null,
+      optionalUrlParams: null,
+      defaultUrlParams: ['response_type', 'client_id', 'redirect_uri'],
+      responseType: 'code'
     };
   }
 
@@ -53,7 +53,7 @@ export class OAuth2 {
    * @memberOf OAuth2
    */
   open(options: {}, userData: {}): Promise<any> {
-    const provider  = extend(true, {}, this.defaults, options);
+    const provider = extend(true, {}, this.defaults, options);
     const stateName = provider.name + '_state';
 
     if (typeof provider.state === 'function') {
@@ -62,12 +62,10 @@ export class OAuth2 {
       this.storage.set(stateName, provider.state);
     }
 
-    const url       = provider.authorizationEndpoint
-                    + '?' + buildQueryString(this.buildQuery(provider));
-    const popup     = this.popup.open(url, provider.name, provider.popupOptions);
-    const openPopup = (this.config.platform === 'mobile')
-                    ? popup.eventListener(provider.redirectUri)
-                    : popup.pollPopup(provider.redirectUri);
+    const url = provider.authorizationEndpoint
+      + '?' + buildQueryString(this.buildQuery(provider));
+    const popup = this.popup.open(url, provider.name, provider.popupOptions);
+    const openPopup = popup.pollPopup(provider.redirectUri);
 
     return openPopup
       .then(oauthData => {
@@ -97,14 +95,14 @@ export class OAuth2 {
    */
   exchangeForToken(oauthData: {}, userData: {}, provider: string): Promise<any> {
     const data = extend(true, {}, userData, {
-      clientId   : provider.clientId,
+      clientId: provider.clientId,
       redirectUri: provider.redirectUri
     }, oauthData);
 
-    const serverUrl   = this.config.joinBase(provider.url);
+    const serverUrl = this.config.joinBase(provider.url);
     const credentials = this.config.withCredentials ? 'include' : 'same-origin';
 
-    return this.config.client.post(serverUrl, data, {credentials: credentials});
+    return this.config.client.post(serverUrl, data, { credentials: credentials });
   }
 
   /**
@@ -117,14 +115,14 @@ export class OAuth2 {
    */
   buildQuery(provider: string): string {
     let query = {};
-    const urlParams   = ['defaultUrlParams', 'requiredUrlParams', 'optionalUrlParams'];
+    const urlParams = ['defaultUrlParams', 'requiredUrlParams', 'optionalUrlParams'];
 
     urlParams.forEach(params => {
       (provider[params] || []).forEach(paramName => {
         const camelizedName = camelCase(paramName);
-        let paramValue      = (typeof provider[paramName] === 'function')
-                              ? provider[paramName]()
-                              : provider[camelizedName];
+        let paramValue = (typeof provider[paramName] === 'function')
+          ? provider[paramName]()
+          : provider[camelizedName];
 
         if (paramName === 'state') {
           paramValue = encodeURIComponent(this.storage.get(provider.name + '_state'));
@@ -154,13 +152,11 @@ export class OAuth2 {
    * @memberOf OAuth2
    */
   close(options?: {}): Promise<any> {
-    const provider  = extend(true, {}, this.defaults, options);
-    const url       = provider.logoutEndpoint + '?'
-                    + buildQueryString(this.buildLogoutQuery(provider));
-    const popup     = this.popup.open(url, provider.name, provider.popupOptions);
-    const openPopup = (this.config.platform === 'mobile')
-                    ? popup.eventListener(provider.postLogoutRedirectUri)
-                    : popup.pollPopup(provider.postLogoutRedirectUri);
+    const provider = extend(true, {}, this.defaults, options);
+    const url = provider.logoutEndpoint + '?'
+      + buildQueryString(this.buildLogoutQuery(provider));
+    const popup = this.popup.open(url, provider.name, provider.popupOptions);
+    const openPopup = popup.pollPopup(provider.postLogoutRedirectUri);
 
     return openPopup;
   }
@@ -198,7 +194,7 @@ export class OAuth2 {
  * @returns {string} The camelized name
  */
 function camelCase(name: string): string {
-  return name.replace(/([:\-_]+(.))/g, function(_, separator, letter, offset) {
+  return name.replace(/([:\-_]+(.))/g, function (_, separator, letter, offset) {
     return offset ? letter.toUpperCase() : letter;
   });
 }

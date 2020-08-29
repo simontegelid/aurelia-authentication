@@ -12,7 +12,6 @@ import {HttpClient} from 'aurelia-fetch-client';
 export declare class Popup {
   constructor();
   open(url: string, windowName: string, options?: {}): Popup;
-  eventListener(redirectUri: string): Promise<any>;
   pollPopup(redirectUri: string): Promise<any>;
 }
 export declare const logger: any;

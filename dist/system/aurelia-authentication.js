@@ -205,55 +205,19 @@ System.register(['extend', 'jwt-decode', 'aurelia-pal', 'aurelia-path', 'aurelia
           return this;
         };
 
-        Popup.prototype.eventListener = function eventListener(redirectUri) {
+        Popup.prototype.pollPopup = function pollPopup(redirectUri) {
           var _this = this;
 
           return new Promise(function (resolve, reject) {
-            _this.popupWindow.addEventListener('loadstart', function (event) {
-              if (!uriEqual(event.url, redirectUri)) {
-                return;
-              }
-
-              var parser = DOM.createElement('a');
-
-              parser.href = event.url;
-
-              if (parser.search || parser.hash) {
-                var qs = parseUrl(parser);
-
-                if (qs.error) {
-                  reject({ error: qs.error });
-                } else {
-                  resolve(qs);
-                }
-
-                _this.popupWindow.close();
-              }
-            });
-
-            _this.popupWindow.addEventListener('exit', function () {
-              reject({ data: 'Provider Popup was closed' });
-            });
-
-            _this.popupWindow.addEventListener('loaderror', function () {
-              reject({ data: 'Authorization Failed' });
-            });
-          });
-        };
-
-        Popup.prototype.pollPopup = function pollPopup(redirectUri) {
-          var _this2 = this;
-
-          return new Promise(function (resolve, reject) {
-            _this2.polling = PLATFORM.global.setInterval(function () {
+            _this.polling = PLATFORM.global.setInterval(function () {
               var errorData = void 0;
 
               try {
-                var popupWinLoc = _this2.popupWindow.location;
+                var popupWinLoc = _this.popupWindow.location;
                 var popupWinUri = popupWinLoc.origin + popupWinLoc.pathname;
 
                 if (uriEqual(popupWinUri, redirectUri)) {
-                  var qs = parseUrl(_this2.popupWindow.location);
+                  var qs = parseUrl(popupWinLoc);
 
                   if (qs.error) {
                     reject({ error: qs.error });
@@ -261,21 +225,21 @@ System.register(['extend', 'jwt-decode', 'aurelia-pal', 'aurelia-path', 'aurelia
                     resolve(qs);
                   }
 
-                  _this2.popupWindow.close();
-                  PLATFORM.global.clearInterval(_this2.polling);
+                  _this.popupWindow.close();
+                  PLATFORM.global.clearInterval(_this.polling);
                 }
               } catch (error) {
                 errorData = error;
               }
 
-              if (!_this2.popupWindow) {
-                PLATFORM.global.clearInterval(_this2.polling);
+              if (!_this.popupWindow) {
+                PLATFORM.global.clearInterval(_this.polling);
                 reject({
                   error: errorData,
                   data: 'Provider Popup Blocked'
                 });
-              } else if (_this2.popupWindow.closed) {
-                PLATFORM.global.clearInterval(_this2.polling);
+              } else if (_this.popupWindow.closed) {
+                PLATFORM.global.clearInterval(_this.polling);
                 reject({
                   error: errorData,
                   data: 'Problem poll popup'
@@ -701,7 +665,7 @@ System.register(['extend', 'jwt-decode', 'aurelia-pal', 'aurelia-path', 'aurelia
         }
 
         AuthLock.prototype.open = function open(options, userData) {
-          var _this3 = this;
+          var _this2 = this;
 
           if (typeof PLATFORM.global.Auth0Lock !== 'function') {
             throw new Error('Auth0Lock was not found in global scope. Please load it before using this provider.');
@@ -744,22 +708,22 @@ System.register(['extend', 'jwt-decode', 'aurelia-pal', 'aurelia-path', 'aurelia
           this.lock = this.lock || new PLATFORM.global.Auth0Lock(provider.clientId, provider.clientDomain, lockOptions);
 
           var openPopup = new Promise(function (resolve, reject) {
-            _this3.lock.on('authenticated', function (authResponse) {
+            _this2.lock.on('authenticated', function (authResponse) {
               if (!lockOptions.auth.redirect) {
-                _this3.lock.hide();
+                _this2.lock.hide();
               }
               resolve({
                 access_token: authResponse.accessToken,
                 id_token: authResponse.idToken
               });
             });
-            _this3.lock.on('unrecoverable_error', function (err) {
+            _this2.lock.on('unrecoverable_error', function (err) {
               if (!lockOptions.auth.redirect) {
-                _this3.lock.hide();
+                _this2.lock.hide();
               }
               reject(err);
             });
-            _this3.lock.show();
+            _this2.lock.show();
           });
 
           return openPopup.then(function (lockResponse) {
@@ -793,7 +757,7 @@ System.register(['extend', 'jwt-decode', 'aurelia-pal', 'aurelia-path', 'aurelia
         }
 
         OAuth1.prototype.open = function open(options, userData) {
-          var _this4 = this;
+          var _this3 = this;
 
           var provider = extend(true, {}, this.defaults, options);
           var serverUrl = this.config.joinBase(provider.url);
@@ -805,16 +769,16 @@ System.register(['extend', 'jwt-decode', 'aurelia-pal', 'aurelia-path', 'aurelia
           return this.config.client.post(serverUrl).then(function (response) {
             var url = provider.authorizationEndpoint + '?' + buildQueryString(response);
 
-            if (_this4.config.platform === 'mobile') {
-              _this4.popup = _this4.popup.open(url, provider.name, provider.popupOptions);
+            if (_this3.config.platform === 'mobile') {
+              _this3.popup = _this3.popup.open(url, provider.name, provider.popupOptions);
             } else {
-              _this4.popup.popupWindow.location = url;
+              _this3.popup.popupWindow.location = url;
             }
 
-            var popupListener = _this4.config.platform === 'mobile' ? _this4.popup.eventListener(provider.redirectUri) : _this4.popup.pollPopup(provider.redirectUri);
+            var popupListener = _this3.popup.pollPopup(provider.redirectUri);
 
             return popupListener.then(function (result) {
-              return _this4.exchangeForToken(result, userData, provider);
+              return _this3.exchangeForToken(result, userData, provider);
             });
           });
         };
@@ -857,7 +821,7 @@ System.register(['extend', 'jwt-decode', 'aurelia-pal', 'aurelia-path', 'aurelia
         }
 
         OAuth2.prototype.open = function open(options, userData) {
-          var _this5 = this;
+          var _this4 = this;
 
           var provider = extend(true, {}, this.defaults, options);
           var stateName = provider.name + '_state';
@@ -870,17 +834,17 @@ System.register(['extend', 'jwt-decode', 'aurelia-pal', 'aurelia-path', 'aurelia
 
           var url = provider.authorizationEndpoint + '?' + buildQueryString(this.buildQuery(provider));
           var popup = this.popup.open(url, provider.name, provider.popupOptions);
-          var openPopup = this.config.platform === 'mobile' ? popup.eventListener(provider.redirectUri) : popup.pollPopup(provider.redirectUri);
+          var openPopup = popup.pollPopup(provider.redirectUri);
 
           return openPopup.then(function (oauthData) {
             if (provider.responseType === 'token' || provider.responseType === 'id_token token' || provider.responseType === 'token id_token') {
               return oauthData;
             }
-            if (oauthData.state && oauthData.state !== _this5.storage.get(stateName)) {
+            if (oauthData.state && oauthData.state !== _this4.storage.get(stateName)) {
               return Promise.reject('OAuth 2.0 state parameter mismatch.');
             }
 
-            return _this5.exchangeForToken(oauthData, userData, provider);
+            return _this4.exchangeForToken(oauthData, userData, provider);
           });
         };
 
@@ -897,7 +861,7 @@ System.register(['extend', 'jwt-decode', 'aurelia-pal', 'aurelia-path', 'aurelia
         };
 
         OAuth2.prototype.buildQuery = function buildQuery(provider) {
-          var _this6 = this;
+          var _this5 = this;
 
           var query = {};
           var urlParams = ['defaultUrlParams', 'requiredUrlParams', 'optionalUrlParams'];
@@ -908,7 +872,7 @@ System.register(['extend', 'jwt-decode', 'aurelia-pal', 'aurelia-path', 'aurelia
               var paramValue = typeof provider[paramName] === 'function' ? provider[paramName]() : provider[camelizedName];
 
               if (paramName === 'state') {
-                paramValue = encodeURIComponent(_this6.storage.get(provider.name + '_state'));
+                paramValue = encodeURIComponent(_this5.storage.get(provider.name + '_state'));
               }
 
               if (paramName === 'scope' && Array.isArray(paramValue)) {
@@ -930,7 +894,7 @@ System.register(['extend', 'jwt-decode', 'aurelia-pal', 'aurelia-path', 'aurelia
           var provider = extend(true, {}, this.defaults, options);
           var url = provider.logoutEndpoint + '?' + buildQueryString(this.buildLogoutQuery(provider));
           var popup = this.popup.open(url, provider.name, provider.popupOptions);
-          var openPopup = this.config.platform === 'mobile' ? popup.eventListener(provider.postLogoutRedirectUri) : popup.pollPopup(provider.postLogoutRedirectUri);
+          var openPopup = popup.pollPopup(provider.postLogoutRedirectUri);
 
           return openPopup;
         };
@@ -1156,10 +1120,10 @@ System.register(['extend', 'jwt-decode', 'aurelia-pal', 'aurelia-path', 'aurelia
         };
 
         Authentication.prototype.toUpdateTokenCallstack = function toUpdateTokenCallstack() {
-          var _this7 = this;
+          var _this6 = this;
 
           return new Promise(function (resolve) {
-            return _this7.updateTokenCallstack.push(resolve);
+            return _this6.updateTokenCallstack.push(resolve);
           });
         };
 
@@ -1257,7 +1221,7 @@ System.register(['extend', 'jwt-decode', 'aurelia-pal', 'aurelia-path', 'aurelia
 
       _export('AuthService', AuthService = (_dec12 = inject(Authentication, BaseConfig, BindingSignaler, EventAggregator), _dec13 = deprecated({ message: 'Use .getAccessToken() instead.' }), _dec12(_class8 = (_class9 = function () {
         function AuthService(authentication, config, bindingSignaler, eventAggregator) {
-          var _this8 = this;
+          var _this7 = this;
 
           
 
@@ -1265,38 +1229,38 @@ System.register(['extend', 'jwt-decode', 'aurelia-pal', 'aurelia-path', 'aurelia
           this.timeoutID = 0;
 
           this.storageEventHandler = function (event) {
-            if (event.key !== _this8.config.storageKey || event.newValue === event.oldValue) {
+            if (event.key !== _this7.config.storageKey || event.newValue === event.oldValue) {
               return;
             }
 
             if (event.newValue) {
-              _this8.authentication.storage.set(_this8.config.storageKey, event.newValue);
+              _this7.authentication.storage.set(_this7.config.storageKey, event.newValue);
             } else {
-              _this8.authentication.storage.remove(_this8.config.storageKey);
+              _this7.authentication.storage.remove(_this7.config.storageKey);
             }
 
-            if (event.newValue && _this8.config.autoUpdateToken && _this8.authentication.getAccessToken() && _this8.authentication.getRefreshToken()) {
-              _this8.setResponseObject(_this8.authentication.getResponseObject());
+            if (event.newValue && _this7.config.autoUpdateToken && _this7.authentication.getAccessToken() && _this7.authentication.getRefreshToken()) {
+              _this7.setResponseObject(_this7.authentication.getResponseObject());
 
               return;
             }
 
             logger.info('Stored token changed event');
 
-            var wasAuthenticated = _this8.authenticated;
+            var wasAuthenticated = _this7.authenticated;
 
-            _this8.authentication.responseAnalyzed = false;
-            _this8.updateAuthenticated();
+            _this7.authentication.responseAnalyzed = false;
+            _this7.updateAuthenticated();
 
-            if (wasAuthenticated === _this8.authenticated) {
+            if (wasAuthenticated === _this7.authenticated) {
               return;
             }
 
-            if (_this8.config.storageChangedRedirect) {
-              PLATFORM.location.href = _this8.config.storageChangedRedirect;
+            if (_this7.config.storageChangedRedirect) {
+              PLATFORM.location.href = _this7.config.storageChangedRedirect;
             }
 
-            if (_this8.config.storageChangedReload) {
+            if (_this7.config.storageChangedReload) {
               PLATFORM.location.reload();
             }
           };
@@ -1324,7 +1288,7 @@ System.register(['extend', 'jwt-decode', 'aurelia-pal', 'aurelia-path', 'aurelia
         }
 
         AuthService.prototype.setTimeout = function setTimeout(ttl) {
-          var _this9 = this;
+          var _this8 = this;
 
           var maxTimeout = 2147483647;
           if (ttl > maxTimeout) {
@@ -1335,24 +1299,24 @@ System.register(['extend', 'jwt-decode', 'aurelia-pal', 'aurelia-path', 'aurelia
           this.clearTimeout();
 
           var expiredTokenHandler = function expiredTokenHandler() {
-            if (_this9.config.autoUpdateToken && _this9.authentication.getAccessToken() && _this9.authentication.getRefreshToken()) {
-              _this9.updateToken().catch(function (error) {
+            if (_this8.config.autoUpdateToken && _this8.authentication.getAccessToken() && _this8.authentication.getRefreshToken()) {
+              _this8.updateToken().catch(function (error) {
                 return logger.warn(error.message);
               });
 
               return;
             }
 
-            _this9.setResponseObject(null);
+            _this8.setResponseObject(null);
 
-            if (_this9.config.expiredRedirect) {
-              PLATFORM.location.assign(_this9.config.expiredRedirect);
+            if (_this8.config.expiredRedirect) {
+              PLATFORM.location.assign(_this8.config.expiredRedirect);
             }
           };
 
           this.timeoutID = PLATFORM.global.setTimeout(expiredTokenHandler, ttl);
           PLATFORM.addEventListener('focus', function () {
-            if (_this9.isTokenExpired()) {
+            if (_this8.isTokenExpired()) {
               expiredTokenHandler();
             }
           });
@@ -1426,7 +1390,7 @@ System.register(['extend', 'jwt-decode', 'aurelia-pal', 'aurelia-path', 'aurelia
         };
 
         AuthService.prototype.isAuthenticated = function isAuthenticated(callback) {
-          var _this10 = this;
+          var _this9 = this;
 
           this.authentication.responseAnalyzed = false;
 
@@ -1435,7 +1399,7 @@ System.register(['extend', 'jwt-decode', 'aurelia-pal', 'aurelia-path', 'aurelia
           if (!authenticated && this.config.autoUpdateToken && this.authentication.getAccessToken() && this.authentication.getRefreshToken()) {
             this.updateToken().then(function () {
               if (typeof callback === 'function') {
-                callback(_this10.authenticated);
+                callback(_this9.authenticated);
               }
             }).catch(function (error) {
               return logger.warn(error.message);
@@ -1476,7 +1440,7 @@ System.register(['extend', 'jwt-decode', 'aurelia-pal', 'aurelia-path', 'aurelia
         };
 
         AuthService.prototype.updateToken = function updateToken() {
-          var _this11 = this;
+          var _this10 = this;
 
           if (!this.authentication.getRefreshToken()) {
             return Promise.reject(new Error('refreshToken not set'));
@@ -1497,24 +1461,24 @@ System.register(['extend', 'jwt-decode', 'aurelia-pal', 'aurelia-path', 'aurelia
             content[this.config.refreshTokenSubmitProp] = this.authentication.getRefreshToken();
 
             this.client.post(this.config.joinBase(this.config.refreshTokenUrl ? this.config.refreshTokenUrl : this.config.loginUrl), content, this.config.getOptionsForTokenRequests()).then(function (response) {
-              _this11.setResponseObject(response);
-              if (_this11.getAccessToken()) {
-                _this11.authentication.resolveUpdateTokenCallstack(_this11.isAuthenticated());
+              _this10.setResponseObject(response);
+              if (_this10.getAccessToken()) {
+                _this10.authentication.resolveUpdateTokenCallstack(_this10.isAuthenticated());
               } else {
-                _this11.setResponseObject(null);
+                _this10.setResponseObject(null);
 
-                if (_this11.config.expiredRedirect) {
-                  PLATFORM.location.assign(_this11.config.expiredRedirect);
+                if (_this10.config.expiredRedirect) {
+                  PLATFORM.location.assign(_this10.config.expiredRedirect);
                 }
-                _this11.authentication.resolveUpdateTokenCallstack(Promise.reject(new Error('accessToken not found in refreshToken response')));
+                _this10.authentication.resolveUpdateTokenCallstack(Promise.reject(new Error('accessToken not found in refreshToken response')));
               }
             }).catch(function (error) {
-              _this11.setResponseObject(null);
+              _this10.setResponseObject(null);
 
-              if (_this11.config.expiredRedirect) {
-                PLATFORM.location.assign(_this11.config.expiredRedirect);
+              if (_this10.config.expiredRedirect) {
+                PLATFORM.location.assign(_this10.config.expiredRedirect);
               }
-              _this11.authentication.resolveUpdateTokenCallstack(Promise.reject(error));
+              _this10.authentication.resolveUpdateTokenCallstack(Promise.reject(error));
             });
           }
 
@@ -1522,7 +1486,7 @@ System.register(['extend', 'jwt-decode', 'aurelia-pal', 'aurelia-path', 'aurelia
         };
 
         AuthService.prototype.signup = function signup(displayNameOrCredentials, emailOrOptions, passwordOrRedirectUri, options, redirectUri) {
-          var _this12 = this;
+          var _this11 = this;
 
           var normalized = {};
 
@@ -1541,17 +1505,17 @@ System.register(['extend', 'jwt-decode', 'aurelia-pal', 'aurelia-path', 'aurelia
           }
 
           return this.client.post(this.config.joinBase(this.config.signupUrl), normalized.credentials, normalized.options).then(function (response) {
-            if (_this12.config.loginOnSignup) {
-              _this12.setResponseObject(response);
+            if (_this11.config.loginOnSignup) {
+              _this11.setResponseObject(response);
             }
-            _this12.authentication.redirect(normalized.redirectUri, _this12.config.signupRedirect);
+            _this11.authentication.redirect(normalized.redirectUri, _this11.config.signupRedirect);
 
             return response;
           });
         };
 
         AuthService.prototype.login = function login(emailOrCredentials, passwordOrOptions, optionsOrRedirectUri, redirectUri) {
-          var _this13 = this;
+          var _this12 = this;
 
           var normalized = {};
 
@@ -1577,25 +1541,25 @@ System.register(['extend', 'jwt-decode', 'aurelia-pal', 'aurelia-path', 'aurelia
           }
 
           return this.client.post(this.config.joinBase(this.config.loginUrl), normalized.credentials, normalized.options).then(function (response) {
-            _this13.setResponseObject(response);
+            _this12.setResponseObject(response);
 
-            _this13.authentication.redirect(normalized.redirectUri, _this13.config.loginRedirect);
+            _this12.authentication.redirect(normalized.redirectUri, _this12.config.loginRedirect);
 
             return response;
           });
         };
 
         AuthService.prototype.logout = function logout(redirectUri, query, name) {
-          var _this14 = this;
+          var _this13 = this;
 
           var localLogout = function localLogout(response) {
             return new Promise(function (resolve) {
-              _this14.setResponseObject(null);
+              _this13.setResponseObject(null);
 
-              _this14.authentication.redirect(redirectUri, _this14.config.logoutRedirect, query);
+              _this13.authentication.redirect(redirectUri, _this13.config.logoutRedirect, query);
 
-              if (typeof _this14.onLogout === 'function') {
-                _this14.onLogout(response);
+              if (typeof _this13.onLogout === 'function') {
+                _this13.onLogout(response);
               }
               resolve(response);
             });
@@ -1604,7 +1568,7 @@ System.register(['extend', 'jwt-decode', 'aurelia-pal', 'aurelia-path', 'aurelia
           if (name) {
             if (this.config.providers[name].logoutEndpoint) {
               return this.authentication.logout(name).then(function (logoutResponse) {
-                var stateValue = _this14.authentication.storage.get(name + '_state');
+                var stateValue = _this13.authentication.storage.get(name + '_state');
 
                 if (logoutResponse.state !== stateValue) {
                   return Promise.reject('OAuth2 response state value differs');
@@ -1619,24 +1583,24 @@ System.register(['extend', 'jwt-decode', 'aurelia-pal', 'aurelia-path', 'aurelia
         };
 
         AuthService.prototype.authenticate = function authenticate(name, redirectUri, userData) {
-          var _this15 = this;
+          var _this14 = this;
 
           return this.authentication.authenticate(name, userData).then(function (response) {
-            _this15.setResponseObject(response);
+            _this14.setResponseObject(response);
 
-            _this15.authentication.redirect(redirectUri, _this15.config.loginRedirect);
+            _this14.authentication.redirect(redirectUri, _this14.config.loginRedirect);
 
             return response;
           });
         };
 
         AuthService.prototype.unlink = function unlink(name, redirectUri) {
-          var _this16 = this;
+          var _this15 = this;
 
           var unlinkUrl = this.config.joinBase(this.config.unlinkUrl) + name;
 
           return this.client.request(this.config.unlinkMethod, unlinkUrl).then(function (response) {
-            _this16.authentication.redirect(redirectUri);
+            _this15.authentication.redirect(redirectUri);
 
             return response;
           });
@@ -1736,13 +1700,13 @@ System.register(['extend', 'jwt-decode', 'aurelia-pal', 'aurelia-path', 'aurelia
         }
 
         FetchConfig.prototype.configure = function configure(client) {
-          var _this17 = this;
+          var _this16 = this;
 
           if (Array.isArray(client)) {
             var configuredClients = [];
 
             client.forEach(function (toConfigure) {
-              configuredClients.push(_this17.configure(toConfigure));
+              configuredClients.push(_this16.configure(toConfigure));
             });
 
             return configuredClients;
@@ -1769,7 +1733,7 @@ System.register(['extend', 'jwt-decode', 'aurelia-pal', 'aurelia-path', 'aurelia
         _createClass(FetchConfig, [{
           key: 'interceptor',
           get: function get() {
-            var _this18 = this;
+            var _this17 = this;
 
             return {
               request: function (_request) {
@@ -1783,16 +1747,16 @@ System.register(['extend', 'jwt-decode', 'aurelia-pal', 'aurelia-path', 'aurelia
 
                 return request;
               }(function (request) {
-                if (!_this18.config.httpInterceptor || !_this18.authService.isAuthenticated()) {
+                if (!_this17.config.httpInterceptor || !_this17.authService.isAuthenticated()) {
                   return request;
                 }
-                var token = _this18.authService.getAccessToken();
+                var token = _this17.authService.getAccessToken();
 
-                if (_this18.config.authTokenType) {
-                  token = _this18.config.authTokenType + ' ' + token;
+                if (_this17.config.authTokenType) {
+                  token = _this17.config.authTokenType + ' ' + token;
                 }
 
-                request.headers.set(_this18.config.authHeader, token);
+                request.headers.set(_this17.config.authHeader, token);
 
                 return request;
               }),
@@ -1816,32 +1780,32 @@ System.register(['extend', 'jwt-decode', 'aurelia-pal', 'aurelia-path', 'aurelia
                     return resolve(response);
                   }
 
-                  if (!_this18.authService.authenticated) {
+                  if (!_this17.authService.authenticated) {
                     return reject(response);
                   }
 
-                  if (_this18.config.httpInterceptor && _this18.config.logoutOnInvalidToken && !_this18.authService.isTokenExpired()) {
-                    return reject(_this18.authService.logout());
+                  if (_this17.config.httpInterceptor && _this17.config.logoutOnInvalidToken && !_this17.authService.isTokenExpired()) {
+                    return reject(_this17.authService.logout());
                   }
 
-                  if (!_this18.config.httpInterceptor || !_this18.authService.isTokenExpired()) {
+                  if (!_this17.config.httpInterceptor || !_this17.authService.isTokenExpired()) {
                     return resolve(response);
                   }
 
-                  if (!_this18.config.useRefreshToken || !_this18.authService.getRefreshToken()) {
+                  if (!_this17.config.useRefreshToken || !_this17.authService.getRefreshToken()) {
                     return resolve(response);
                   }
 
-                  resolve(_this18.authService.updateToken().then(function () {
-                    var token = _this18.authService.getAccessToken();
+                  resolve(_this17.authService.updateToken().then(function () {
+                    var token = _this17.authService.getAccessToken();
 
-                    if (_this18.config.authTokenType) {
-                      token = _this18.config.authTokenType + ' ' + token;
+                    if (_this17.config.authTokenType) {
+                      token = _this17.config.authTokenType + ' ' + token;
                     }
 
-                    request.headers.set(_this18.config.authHeader, token);
+                    request.headers.set(_this17.config.authHeader, token);
 
-                    return _this18.httpClient.fetch(request).then(resolve);
+                    return _this17.httpClient.fetch(request).then(resolve);
                   }));
                 });
               })

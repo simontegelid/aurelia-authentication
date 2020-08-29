@@ -66,40 +66,6 @@ export let Popup = class Popup {
     return this;
   }
 
-  eventListener(redirectUri) {
-    return new Promise((resolve, reject) => {
-      this.popupWindow.addEventListener('loadstart', event => {
-        if (!uriEqual(event.url, redirectUri)) {
-          return;
-        }
-
-        const parser = DOM.createElement('a');
-
-        parser.href = event.url;
-
-        if (parser.search || parser.hash) {
-          const qs = parseUrl(parser);
-
-          if (qs.error) {
-            reject({ error: qs.error });
-          } else {
-            resolve(qs);
-          }
-
-          this.popupWindow.close();
-        }
-      });
-
-      this.popupWindow.addEventListener('exit', () => {
-        reject({ data: 'Provider Popup was closed' });
-      });
-
-      this.popupWindow.addEventListener('loaderror', () => {
-        reject({ data: 'Authorization Failed' });
-      });
-    });
-  }
-
   pollPopup(redirectUri) {
     return new Promise((resolve, reject) => {
       this.polling = PLATFORM.global.setInterval(() => {
@@ -110,7 +76,7 @@ export let Popup = class Popup {
           let popupWinUri = popupWinLoc.origin + popupWinLoc.pathname;
 
           if (uriEqual(popupWinUri, redirectUri)) {
-            const qs = parseUrl(this.popupWindow.location);
+            const qs = parseUrl(popupWinLoc);
 
             if (qs.error) {
               reject({ error: qs.error });
@@ -631,7 +597,7 @@ export let OAuth1 = (_dec3 = inject(Storage, Popup, BaseConfig), _dec3(_class4 =
         this.popup.popupWindow.location = url;
       }
 
-      const popupListener = this.config.platform === 'mobile' ? this.popup.eventListener(provider.redirectUri) : this.popup.pollPopup(provider.redirectUri);
+      const popupListener = this.popup.pollPopup(provider.redirectUri);
 
       return popupListener.then(result => this.exchangeForToken(result, userData, provider));
     });
@@ -680,7 +646,7 @@ export let OAuth2 = (_dec4 = inject(Storage, Popup, BaseConfig), _dec4(_class5 =
 
     const url = provider.authorizationEndpoint + '?' + buildQueryString(this.buildQuery(provider));
     const popup = this.popup.open(url, provider.name, provider.popupOptions);
-    const openPopup = this.config.platform === 'mobile' ? popup.eventListener(provider.redirectUri) : popup.pollPopup(provider.redirectUri);
+    const openPopup = popup.pollPopup(provider.redirectUri);
 
     return openPopup.then(oauthData => {
       if (provider.responseType === 'token' || provider.responseType === 'id_token token' || provider.responseType === 'token id_token') {
@@ -738,7 +704,7 @@ export let OAuth2 = (_dec4 = inject(Storage, Popup, BaseConfig), _dec4(_class5 =
     const provider = extend(true, {}, this.defaults, options);
     const url = provider.logoutEndpoint + '?' + buildQueryString(this.buildLogoutQuery(provider));
     const popup = this.popup.open(url, provider.name, provider.popupOptions);
-    const openPopup = this.config.platform === 'mobile' ? popup.eventListener(provider.postLogoutRedirectUri) : popup.pollPopup(provider.postLogoutRedirectUri);
+    const openPopup = popup.pollPopup(provider.postLogoutRedirectUri);
 
     return openPopup;
   }

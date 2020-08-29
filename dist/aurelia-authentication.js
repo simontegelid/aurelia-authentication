@@ -18,8 +18,8 @@ import {AuthenticatedFilterValueConverter} from "./authenticatedFilterValueConve
 export class Popup {
   constructor() {
     this.popupWindow = null;
-    this.polling     = null;
-    this.url         = '';
+    this.polling = null;
+    this.url = '';
   }
 
   open(url: string, windowName: string, options?: {}): Popup {
@@ -35,40 +35,6 @@ export class Popup {
     return this;
   }
 
-  eventListener(redirectUri: string): Promise<any> {
-    return new Promise((resolve, reject) => {
-      this.popupWindow.addEventListener('loadstart', event => {
-        if (!uriEqual(event.url, redirectUri)) {
-          return;
-        }
-
-        const parser  = DOM.createElement('a');
-
-        parser.href = event.url;
-
-        if (parser.search || parser.hash) {
-          const qs = parseUrl(parser);
-
-          if (qs.error) {
-            reject({error: qs.error});
-          } else {
-            resolve(qs);
-          }
-
-          this.popupWindow.close();
-        }
-      });
-
-      this.popupWindow.addEventListener('exit', () => {
-        reject({data: 'Provider Popup was closed'});
-      });
-
-      this.popupWindow.addEventListener('loaderror', () => {
-        reject({data: 'Authorization Failed'});
-      });
-    });
-  }
-
   pollPopup(redirectUri: string): Promise<any> {
     return new Promise((resolve, reject) => {
       this.polling = PLATFORM.global.setInterval(() => {
@@ -79,10 +45,10 @@ export class Popup {
           let popupWinUri = popupWinLoc.origin + popupWinLoc.pathname;
 
           if (uriEqual(popupWinUri, redirectUri)) {
-            const qs = parseUrl(this.popupWindow.location);
+            const qs = parseUrl(popupWinLoc);
 
             if (qs.error) {
-              reject({error: qs.error});
+              reject({ error: qs.error });
             } else {
               resolve(qs);
             }
@@ -98,13 +64,13 @@ export class Popup {
           PLATFORM.global.clearInterval(this.polling);
           reject({
             error: errorData,
-            data : 'Provider Popup Blocked'
+            data: 'Provider Popup Blocked'
           });
         } else if (this.popupWindow.closed) {
           PLATFORM.global.clearInterval(this.polling);
           reject({
             error: errorData,
-            data : 'Problem poll popup'
+            data: 'Problem poll popup'
           });
         }
       }, 35);
@@ -114,14 +80,14 @@ export class Popup {
 }
 
 const buildPopupWindowOptions = (options: {}): string => {
-  const width  = options.width || 500;
+  const width = options.width || 500;
   const height = options.height || 500;
 
   const extended = extend({
-    width : width,
+    width: width,
     height: height,
-    left  : PLATFORM.global.screenX + ((PLATFORM.global.outerWidth - width) / 2),
-    top   : PLATFORM.global.screenY + ((PLATFORM.global.outerHeight - height) / 2.5)
+    left: PLATFORM.global.screenX + ((PLATFORM.global.outerWidth - width) / 2),
+    top: PLATFORM.global.screenY + ((PLATFORM.global.outerHeight - height) / 2.5)
   }, options);
 
   let parts = [];
@@ -745,20 +711,20 @@ export class AuthLock {
 @inject(Storage, Popup, BaseConfig)
 export class OAuth1 {
   constructor(storage: Storage, popup: Popup, config: BaseConfig) {
-    this.storage  = storage;
-    this.config   = config;
-    this.popup    = popup;
+    this.storage = storage;
+    this.config = config;
+    this.popup = popup;
     this.defaults = {
-      url                  : null,
-      name                 : null,
-      popupOptions         : null,
-      redirectUri          : null,
+      url: null,
+      name: null,
+      popupOptions: null,
+      redirectUri: null,
       authorizationEndpoint: null
     };
   }
 
   open(options: {}, userData: {}): Promise<any> {
-    const provider  = extend(true, {}, this.defaults, options);
+    const provider = extend(true, {}, this.defaults, options);
     const serverUrl = this.config.joinBase(provider.url);
 
     if (this.config.platform !== 'mobile') {
@@ -775,20 +741,18 @@ export class OAuth1 {
           this.popup.popupWindow.location = url;
         }
 
-        const popupListener = this.config.platform === 'mobile'
-                            ? this.popup.eventListener(provider.redirectUri)
-          : this.popup.pollPopup(provider.redirectUri);
+        const popupListener = this.popup.pollPopup(provider.redirectUri);
 
         return popupListener.then(result => this.exchangeForToken(result, userData, provider));
       });
   }
 
   exchangeForToken(oauthData: {}, userData: {}, provider: string): Promise<any> {
-    const data        = extend(true, {}, userData, oauthData);
-    const serverUrl   = this.config.joinBase(provider.url);
+    const data = extend(true, {}, userData, oauthData);
+    const serverUrl = this.config.joinBase(provider.url);
     const credentials = this.config.withCredentials ? 'include' : 'same-origin';
 
-    return this.config.client.post(serverUrl, data, {credentials: credentials});
+    return this.config.client.post(serverUrl, data, { credentials: credentials });
   }
 }
 
@@ -810,23 +774,23 @@ export class OAuth2 {
    * @memberOf OAuth2
    */
   constructor(storage: Storage, popup: Popup, config: BaseConfig) {
-    this.storage      = storage;
-    this.config       = config;
-    this.popup        = popup;
-    this.defaults     = {
-      url                  : null,
-      name                 : null,
-      state                : null,
-      scope                : null,
-      scopeDelimiter       : null,
-      redirectUri          : null,
-      popupOptions         : null,
+    this.storage = storage;
+    this.config = config;
+    this.popup = popup;
+    this.defaults = {
+      url: null,
+      name: null,
+      state: null,
+      scope: null,
+      scopeDelimiter: null,
+      redirectUri: null,
+      popupOptions: null,
       authorizationEndpoint: null,
-      responseParams       : null,
-      requiredUrlParams    : null,
-      optionalUrlParams    : null,
-      defaultUrlParams     : ['response_type', 'client_id', 'redirect_uri'],
-      responseType         : 'code'
+      responseParams: null,
+      requiredUrlParams: null,
+      optionalUrlParams: null,
+      defaultUrlParams: ['response_type', 'client_id', 'redirect_uri'],
+      responseType: 'code'
     };
   }
 
@@ -840,7 +804,7 @@ export class OAuth2 {
    * @memberOf OAuth2
    */
   open(options: {}, userData: {}): Promise<any> {
-    const provider  = extend(true, {}, this.defaults, options);
+    const provider = extend(true, {}, this.defaults, options);
     const stateName = provider.name + '_state';
 
     if (typeof provider.state === 'function') {
@@ -849,12 +813,10 @@ export class OAuth2 {
       this.storage.set(stateName, provider.state);
     }
 
-    const url       = provider.authorizationEndpoint
-                    + '?' + buildQueryString(this.buildQuery(provider));
-    const popup     = this.popup.open(url, provider.name, provider.popupOptions);
-    const openPopup = (this.config.platform === 'mobile')
-                    ? popup.eventListener(provider.redirectUri)
-      : popup.pollPopup(provider.redirectUri);
+    const url = provider.authorizationEndpoint
+      + '?' + buildQueryString(this.buildQuery(provider));
+    const popup = this.popup.open(url, provider.name, provider.popupOptions);
+    const openPopup = popup.pollPopup(provider.redirectUri);
 
     return openPopup
       .then(oauthData => {
@@ -884,14 +846,14 @@ export class OAuth2 {
    */
   exchangeForToken(oauthData: {}, userData: {}, provider: string): Promise<any> {
     const data = extend(true, {}, userData, {
-      clientId   : provider.clientId,
+      clientId: provider.clientId,
       redirectUri: provider.redirectUri
     }, oauthData);
 
-    const serverUrl   = this.config.joinBase(provider.url);
+    const serverUrl = this.config.joinBase(provider.url);
     const credentials = this.config.withCredentials ? 'include' : 'same-origin';
 
-    return this.config.client.post(serverUrl, data, {credentials: credentials});
+    return this.config.client.post(serverUrl, data, { credentials: credentials });
   }
 
   /**
@@ -904,14 +866,14 @@ export class OAuth2 {
    */
   buildQuery(provider: string): string {
     let query = {};
-    const urlParams   = ['defaultUrlParams', 'requiredUrlParams', 'optionalUrlParams'];
+    const urlParams = ['defaultUrlParams', 'requiredUrlParams', 'optionalUrlParams'];
 
     urlParams.forEach(params => {
       (provider[params] || []).forEach(paramName => {
         const camelizedName = camelCase(paramName);
-        let paramValue      = (typeof provider[paramName] === 'function')
-                              ? provider[paramName]()
-                              : provider[camelizedName];
+        let paramValue = (typeof provider[paramName] === 'function')
+          ? provider[paramName]()
+          : provider[camelizedName];
 
         if (paramName === 'state') {
           paramValue = encodeURIComponent(this.storage.get(provider.name + '_state'));
@@ -941,13 +903,11 @@ export class OAuth2 {
    * @memberOf OAuth2
    */
   close(options?: {}): Promise<any> {
-    const provider  = extend(true, {}, this.defaults, options);
-    const url       = provider.logoutEndpoint + '?'
-                    + buildQueryString(this.buildLogoutQuery(provider));
-    const popup     = this.popup.open(url, provider.name, provider.popupOptions);
-    const openPopup = (this.config.platform === 'mobile')
-                    ? popup.eventListener(provider.postLogoutRedirectUri)
-      : popup.pollPopup(provider.postLogoutRedirectUri);
+    const provider = extend(true, {}, this.defaults, options);
+    const url = provider.logoutEndpoint + '?'
+      + buildQueryString(this.buildLogoutQuery(provider));
+    const popup = this.popup.open(url, provider.name, provider.popupOptions);
+    const openPopup = popup.pollPopup(provider.postLogoutRedirectUri);
 
     return openPopup;
   }
@@ -985,7 +945,7 @@ export class OAuth2 {
  * @returns {string} The camelized name
  */
 function camelCase(name: string): string {
-  return name.replace(/([:\-_]+(.))/g, function(_, separator, letter, offset) {
+  return name.replace(/([:\-_]+(.))/g, function (_, separator, letter, offset) {
     return offset ? letter.toUpperCase() : letter;
   });
 }
